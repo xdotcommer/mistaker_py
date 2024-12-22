@@ -111,13 +111,12 @@ class Generator:
         return random.random() < weight
 
     def generate_mistakes(self, record: Dict[str, str]) -> Dict[str, str]:
-        """Generate mistakes for a single record"""
-        new_record = record.copy()  # Preserve all fields by default
+        """Generate mistakes for a single record with improved nickname handling"""
+        new_record = record.copy()
         chaos_level = random.randint(self.config["min_chaos"], self.config["max_chaos"])
 
-        # Only modify supported fields
         for field in self.SUPPORTED_FIELDS:
-            if field not in new_record:  # Skip if field isn't present
+            if field not in new_record:
                 continue
 
             if not new_record[field] or self.should_field_be_missing(field):
@@ -127,8 +126,33 @@ class Generator:
             try:
                 if field == "full_name":
                     name = Name(new_record[field])
+
+                    # First, decide if we want to use a nickname variation as the base
+                    if random.random() < 0.3:  # 30% chance to start with a nickname
+                        variations = name.get_name_variations()
+                        nickname_variations = [v for v in variations if v != name.text]
+                        if nickname_variations:
+                            name.text = random.choice(nickname_variations)
+
+                    # Now apply sequential mistakes
                     for _ in range(chaos_level):
-                        new_record[field] = name.mistake()
+                        # During each iteration, we might:
+                        # 1. Apply a nickname transformation (20% chance)
+                        # 2. Apply a standard mistake (80% chance)
+                        if random.random() < 0.2:
+                            variations = name.get_name_variations()
+                            valid_variations = [
+                                v
+                                for v in variations
+                                if v != name.text and len(v.split()) >= 2
+                            ]
+                            if valid_variations:
+                                name.text = random.choice(valid_variations)
+                        else:
+                            # Apply standard mistake (transcription error)
+                            name.text = name.mistake()
+
+                    new_record[field] = name.text
 
                 elif field == "dob":
                     date = Date(new_record[field])
@@ -160,7 +184,8 @@ class Generator:
                     for _ in range(chaos_level):
                         new_record[field] = address.mistake()
 
-            except (ValueError, AttributeError):
+            except (ValueError, AttributeError) as e:
+                print(f"Warning: Error processing field {field}: {str(e)}")
                 pass
 
         return new_record

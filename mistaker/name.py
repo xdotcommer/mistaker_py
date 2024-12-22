@@ -56,43 +56,133 @@ class Name(Word):
             return self.text == other_name
         return self.text.upper() == other_name.upper()
 
+    def _get_nickname_variations(self, first_name: str) -> List[str]:
+        """Get nickname variations for a given first name using the correct nicknames_of method"""
+        try:
+            from nicknames import NickNamer
+
+            namer = NickNamer()
+            variations = set()  # Use a set to avoid duplicates
+
+            # Get nicknames using the correct nicknames_of method
+            nicknames = namer.nicknames_of(first_name)
+            if nicknames:
+                variations.update(nicknames)
+
+            # Optionally also get canonical forms
+            canonicals = namer.canonicals_of(first_name)
+            if canonicals:
+                variations.update(canonicals)
+
+            # Filter out empty strings and the original name
+            variations = {v for v in variations if v and v != first_name}
+
+            return list(variations)
+        except ImportError:
+            print(
+                "Warning: nicknames package not installed. Run 'pip install nicknames' to enable nickname generation."
+            )
+            return []
+        except Exception as e:
+            print(f"Warning: Error getting nicknames for {first_name}: {str(e)}")
+            return []
+
     def get_name_variations(self) -> List[str]:
-        """Generate basic name variations"""
+        """Generate basic name variations including nicknames"""
         parts = self.get_parts()
         variations = []
 
-        # Base names
-        variations.append(f"{parts['first']} {parts['last']}")  # Simple first last
-        variations.append(f"{parts['last']}, {parts['first']}")  # Last, first
-        variations.append(f"{parts['last']} {parts['first']}")  # Last first
+        # Generate base name variations (without prefix/suffix)
+        base_variations = [
+            f"{parts['first']} {parts['last']}",
+            f"{parts['last']}, {parts['first']}",
+            f"{parts['last']} {parts['first']}",
+        ]
 
-        # Handle middle name if present
+        # Add these base variations first
+        variations.extend(base_variations)
+
+        # Handle middle names
         if parts["middle"]:
+            # With full middle name
+            variations.append(
+                f"{parts['first']} {' '.join(parts['middle'])} {parts['last']}"
+            )
+            # With middle initial
             variations.append(
                 f"{parts['first']} {parts['middle'][0][0]} {parts['last']}"
-            )  # With middle initial
+            )
+            # First initial with middle name
             variations.append(
                 f"{parts['first'][0]} {' '.join(parts['middle'])} {parts['last']}"
-            )  # First initial
+            )
 
-        # Handle prefix/suffix
-        if parts["prefix"]:
-            variations.append(
-                f"{parts['prefix']} {parts['first']} {parts['last']}"
-            )  # With prefix, no suffix
-            # Add alternate prefixes
-            if parts["prefix"] == "Dr":
-                variations.append(f"Mr {parts['first']} {parts['last']}")
-                variations.append(f"Mrs {parts['first']} {parts['last']}")
-            else:
-                variations.append(f"Dr {parts['first']} {parts['last']}")
+        # Create base names for prefix/suffix variations
+        base_names = [f"{parts['first']} {parts['last']}"]  # Simple first last
+        if parts["middle"]:
+            base_names.append(
+                f"{parts['first']} {' '.join(parts['middle'])} {parts['last']}"
+            )  # With middle
 
+        # Add variations with suffix but no prefix
         if parts["suffix"]:
-            variations.append(
-                f"{parts['first']} {parts['last']} {parts['suffix']}"
-            )  # With suffix, no prefix
+            for base in base_names:
+                variations.append(
+                    f"{base} {parts['suffix']}"
+                )  # Just add suffix to each base name
 
-        # Clean up any double spaces
+        # Add prefix/suffix combinations
+        for base_name in base_names:
+            if parts["prefix"] and parts["suffix"]:
+                # Full name with both
+                variations.append(f"{parts['prefix']} {base_name} {parts['suffix']}")
+                # With prefix variations
+                if parts["prefix"] == "Dr":
+                    variations.append(f"Mr {base_name} {parts['suffix']}")
+                    variations.append(f"Mrs {base_name} {parts['suffix']}")
+                else:
+                    variations.append(f"Dr {base_name} {parts['suffix']}")
+            elif parts["prefix"]:
+                # Just prefix
+                variations.append(f"{parts['prefix']} {base_name}")
+                if parts["prefix"] == "Dr":
+                    variations.append(f"Mr {base_name}")
+                    variations.append(f"Mrs {base_name}")
+                else:
+                    variations.append(f"Dr {base_name}")
+
+        # Add nickname variations
+        nicknames = self._get_nickname_variations(parts["first"])
+        for nickname in nicknames:
+            # Basic nickname variations
+            variations.extend(
+                [
+                    f"{nickname} {parts['last']}",
+                    f"{parts['last']}, {nickname}",
+                    f"{parts['last']} {nickname}",
+                ]
+            )
+
+            # With middle name if present
+            if parts["middle"]:
+                variations.append(
+                    f"{nickname} {' '.join(parts['middle'])} {parts['last']}"
+                )
+                variations.append(f"{nickname} {parts['middle'][0][0]} {parts['last']}")
+
+            # Add suffix to nickname variations
+            if parts["suffix"]:
+                variations.append(f"{nickname} {parts['last']} {parts['suffix']}")
+
+            # With prefix/suffix combinations
+            if parts["prefix"]:
+                variations.append(f"{parts['prefix']} {nickname} {parts['last']}")
+                if parts["suffix"]:
+                    variations.append(
+                        f"{parts['prefix']} {nickname} {parts['last']} {parts['suffix']}"
+                    )
+
+        # Clean up and deduplicate
         variations = [" ".join(v.split()) for v in variations]
         return list(set(variations))
 
