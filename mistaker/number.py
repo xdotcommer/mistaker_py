@@ -39,9 +39,11 @@ class Number(BaseMistaker):
                 ErrorType.KEY_SWAP,
             ]
             error_type = self.rand.choice(number_errors)
+            print(f"Selected error type: {error_type}")
 
         if index is None:
             index = self.rand.randint(0, length - 1)
+            print(f"Selected index: {index}")
 
         text_list = list(self.text)
 
