@@ -45,11 +45,11 @@ class Address(Word):
                 # Keep suffix unchanged
                 modified_parts.append(part)
             elif part.isdigit():
-                # Modify numbers 33% of the time
-                should_modify = random.random() < 0.33
+                should_modify = random.random() < 0.6
                 if should_modify:
                     handler = Number(part)
-                    modified_parts.append(handler.mistake())
+                    # Force a specific error type to ensure modification
+                    modified_parts.append(handler.mistake(ErrorType.ONE_DIGIT_UP))
                 else:
                     modified_parts.append(part)
             elif part.isalpha():
