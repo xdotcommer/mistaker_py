@@ -13,6 +13,21 @@ class Name(Word):
     COMMON_PREFIXES = {"Mr", "Mrs", "Ms", "Dr", "Prof"}
     COMMON_SUFFIXES = {"Jr", "Sr", "II", "III", "IV", "PhD", "MD", "Esq"}
 
+    @classmethod
+    def make_mistake(cls, text: str) -> str:
+        """Class method for one-off mistake generation"""
+        instance = cls(text)
+        # Force a modification by using a random error type
+        error_types = [
+            ErrorType.ONE_DIGIT_UP,
+            ErrorType.ONE_DIGIT_DOWN,
+            ErrorType.KEY_SWAP,
+            ErrorType.DIGIT_SHIFT,
+            ErrorType.MISREAD,
+            ErrorType.NUMERIC_KEY_PAD,
+        ]
+        return instance.mistake(random.choice(error_types))
+
     def __init__(self, text: str = ""):
         self.original_text = text
         super().__init__(text)
@@ -158,20 +173,20 @@ class Name(Word):
     def mistake(
         self, error_type: Optional[ErrorType] = None, index: Optional[int] = None
     ) -> str:
-        """
-        Generate a mistake in the name. Can either be a transcription error (like Word)
-        or a variation in how the name is formatted.
-        """
-        # Get both types of possible changes
-        variations = self.get_name_variations()
-
-        if error_type is None:
-            # 30% chance of using a name variation, 50% chance of a transcription error
-            if random.random() < 0.3 and variations:
+        """Generate a mistake in the name"""
+        if error_type is None and random.random() < 0.5:  # 50% chance of variation
+            parts = self.text.split()
+            if len(parts) >= 2:
+                variations = [
+                    f"{parts[-1]}, {' '.join(parts[:-1])}",  # Last, First [Middle]
+                    f"{parts[0]} {parts[-1]}",  # First Last
+                ]
+                if len(parts) > 2:
+                    variations.append(
+                        f"{parts[0][0]} {' '.join(parts[1:])}"
+                    )  # F. Middle Last
                 return random.choice(variations)
-            else:
-                # Fall back to regular word mistakes
-                return super().mistake(error_type, index)
+
         return super().mistake(error_type, index)
 
     def chaos(self) -> str:
