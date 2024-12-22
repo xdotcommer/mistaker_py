@@ -1,6 +1,7 @@
-from typing import Dict, List, Any, Set, Optional, TextIO, Iterator
+from typing import Dict, List, Optional, Iterator
 import random
 import json
+from .address import Address
 from .word import Word
 from .name import Name
 from .date import Date
@@ -139,7 +140,25 @@ class Generator:
                     for _ in range(chaos_level):
                         new_record[field] = number.mistake()
 
-                # ... rest of the method stays the same ...
+                elif field == "email":
+                    if "@" in new_record[field]:
+                        username, domain = new_record[field].split("@")
+                        username_word = Word(username)
+                        domain_word = Word(domain)
+                        for _ in range(chaos_level):
+                            new_username = username_word.mistake()
+                            new_domain = domain_word.mistake()
+                            new_record[field] = f"{new_username}@{new_domain}"
+
+                elif field == "dl_num":
+                    dl = Word(new_record[field])
+                    for _ in range(chaos_level):
+                        new_record[field] = dl.mistake()
+
+                elif field == "full_address":
+                    address = Address(new_record[field])
+                    for _ in range(chaos_level):
+                        new_record[field] = address.mistake()
 
             except (ValueError, AttributeError):
                 pass
