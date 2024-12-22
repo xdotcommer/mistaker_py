@@ -5,7 +5,7 @@ import random
 def demonstrate_mistakes(iterations=10):
     # Sample data
     dates = ["2023-05-15", "1995-12-25", "2010-07-04"]
-    names = ["John Smith", "Mary Johnson", "Robert Wilson PhD"]
+    names = ["Kim Deal", "María José García", "Robert Wilson PhD"]
     numbers = ["12345", "987654", "432100"]
     words = ["COMPUTER", "KEYBOARD", "MONITOR"]
 
