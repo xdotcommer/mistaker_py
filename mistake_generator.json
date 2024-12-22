@@ -1,0 +1,24 @@
+{
+    "min_duplicates": 2,
+    "max_duplicates": 5,
+    "min_chaos": 1,
+    "max_chaos": 3,
+    "missing_weights": {
+        "full_name": 0.05,
+        "dob": 0.1,
+        "phone": 0.8,
+        "email": 0.95,
+        "ssn": 0.9,
+        "dl_num": 0.5,
+        "full_address": 0.5
+    },
+    "field_weights": {
+        "full_name": 1.0,
+        "dob": 1.0,
+        "phone": 1.0,
+        "email": 1.0,
+        "ssn": 1.0,
+        "dl_num": 1.0,
+        "full_address": 1.0
+    }
+}
