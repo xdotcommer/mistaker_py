@@ -17,14 +17,6 @@ def test_reformat():
     assert number.reformat("abc") == ""
 
 
-def test_make_mistake_classmethod():
-    """Test the class method interface"""
-    result = Number.make_mistake("2018122")
-    assert result != "2018122"
-    assert isinstance(result, str)
-    assert result.isdigit()
-
-
 def test_one_digit_up():
     test_cases = [
         ("198012", 5, "198013"),

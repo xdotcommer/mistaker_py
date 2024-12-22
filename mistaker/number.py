@@ -1,6 +1,7 @@
 from typing import Optional
 from .base import BaseMistaker
 from .constants import ErrorType, MISREAD_NUMBERS, TEN_KEYS
+import random
 
 
 class Number(BaseMistaker):
@@ -9,6 +10,22 @@ class Number(BaseMistaker):
     def reformat(self, text: str) -> str:
         """Strip everything except digits"""
         return "".join(c for c in str(text) if c.isdigit())
+
+    @classmethod
+    def make_mistake(cls, text: str) -> str:
+        """Class method for one-off mistake generation"""
+        instance = cls(text)
+        # Force a modification by using a random error type
+        number_errors = [
+            ErrorType.ONE_DIGIT_UP,
+            ErrorType.ONE_DIGIT_DOWN,
+            ErrorType.KEY_SWAP,
+            ErrorType.DIGIT_SHIFT,
+            ErrorType.MISREAD,
+            ErrorType.NUMERIC_KEY_PAD,
+        ]
+        error_type = random.choice(number_errors)
+        return instance.mistake(error_type)
 
     def mistake(
         self, error_type: Optional[ErrorType] = None, index: Optional[int] = None
