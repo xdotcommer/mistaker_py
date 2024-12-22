@@ -14,9 +14,19 @@ class Word(BaseMistaker):
 
     def reformat(self, text: str) -> str:
         """Convert text to uppercase and remove non-alpha characters except spaces"""
-        if not text or text.isspace():  # Add check for whitespace-only strings
-            return text
-        return "".join(c for c in str(text).upper() if c.isalpha() or c.isspace())
+        # Handle invalid input types by converting to string
+        if text is None:
+            return ""
+
+        try:
+            text_str = str(text)
+        except (ValueError, TypeError):
+            return ""
+
+        if not text_str or text_str.isspace():
+            return text_str
+
+        return "".join(c for c in text_str.upper() if c.isalpha() or c.isspace())
 
     def mistake(
         self, error_type: Optional[ErrorType] = None, index: Optional[int] = None
@@ -31,11 +41,19 @@ class Word(BaseMistaker):
         Returns:
             Modified string with the applied error
         """
-        self.text = self.reformat(self.text)
+        # Handle invalid input by returning empty string
+        if self.text is None:
+            return ""
+
+        try:
+            self.text = self.reformat(self.text)
+        except (ValueError, TypeError):
+            return ""
+
         length = len(self.text)
 
         if length == 0:
-            return self.text
+            return ""
 
         if error_type is None:
             word_errors = [
