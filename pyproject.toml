@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "mistaker"
-version = "0.1.0"
+version = "0.2.0"
 authors = [
   { name="Michael Cowden", email="mike@novate.ai" },
 ]
@@ -16,6 +16,9 @@ classifiers = [
     "License :: OSI Approved :: MIT License",
     "Operating System :: OS Independent",
 ]
+
+[project.scripts]
+mistaker = "mistaker.cli:main"
 
 [project.urls]
 "Homepage" = "https://github.com/xdotcommer/mistaker_py"

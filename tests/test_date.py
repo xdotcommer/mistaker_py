@@ -24,13 +24,6 @@ def test_reformat():
     assert date.reformat("5/2/12") == "2012-05-02"
 
 
-def test_make_mistake_classmethod():
-    """Test the class method interface"""
-    result = Date.make_mistake("1988-04-12")
-    assert result != "1988-04-12"
-    assert isinstance(result, str)
-
-
 def test_one_digit_up():
     date = Date()
     # Test day increment

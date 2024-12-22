@@ -16,39 +16,151 @@ Mistaker is a Python package designed to emulate common data entry errors that o
 
 ## Installation
 
-Install using pip:
-
 ```bash
 pip install mistaker
 ```
 
-For development installation:
+## Quick Start
+
+### Command Line
+Generate variations with mistakes from your CSV data:
 
 ```bash
-pip install -e ".[test]"
+# Basic usage
+mistaker data.csv > output.csv
+
+# Using standard input
+cat data.csv | mistaker > output.csv
+
+# The tool will automatically use config.json from current directory if it exists
+# Or specify a custom config file:
+mistaker data.csv -c custom_config.json
+
+# Adjust mistake generation via command line
+mistaker data.csv --min-duplicates 3 --max-duplicates 6 --min-chaos 1 --max-chaos 3
 ```
 
-## Quick Start
+## Configuration
+
+Control the mistake generation process via a JSON configuration file:
+
+```json
+{
+    "min_duplicates": 2,    // Minimum variations per record
+    "max_duplicates": 5,    // Maximum variations per record
+    "min_chaos": 1,         // Minimum mistakes per field
+    "max_chaos": 3,         // Maximum mistakes per field
+    "missing_weights": {
+        "full_name": 0.05,  // 5% chance field will be missing
+        "dob": 0.1,         // 10% chance
+        "phone": 0.2,       // 20% chance
+        "email": 0.15,
+        "ssn": 0.1,
+        "dl_num": 0.25,
+        "full_address": 0.15
+    }
+}
+```
+
+## Supported Fields
+
+Mistaker handles these fields with field-specific error patterns:
+
+- `full_name`: Name variations and misspellings
+- `dob`: Date format errors and typos
+- `phone`: Number transpositions and formatting errors
+- `ssn`: Number mistakes preserving SSN patterns
+- `dl_num`: Alphanumeric mistakes for driver's licenses
+- `email`: Username and domain-specific errors
+- `full_address`: Address component errors
+
+## Advanced Usage
+
+### Python API
+
+```python
+from mistaker import Generator
+
+# Create generator with defaults
+generator = Generator()
+
+# Process a single record
+record = {
+    'full_name': 'John Smith',
+    'dob': '1990-01-01',
+    'phone': '555-123-4567'
+}
+
+variations = generator.generate(record)  # Returns list with original + variations
+
+# Process multiple records
+records = [record1, record2, record3]
+for variation in generator.generate_all(records):
+    print(variation)
+```
+
+### Python API Options
+
+```python
+# Initialize with custom settings
+generator = Generator(
+    min_duplicates=3,
+    max_duplicates=6,
+    min_chaos=2,
+    max_chaos=4
+)
+
+# Load from config file
+generator = Generator.from_file('config.json')
+
+# Custom configuration
+config = {
+    'missing_weights': {
+        'full_name': 0.05,
+        'phone': 0.2
+    }
+}
+generator = Generator(config=config)
+```
+
+### CLI Options
+
+```bash
+mistaker --help
+
+usage: mistaker [input_file] [options]
+
+options:
+  -h, --help           show this help message and exit
+  -c, --config CONFIG  configuration JSON file path
+  --min-duplicates N   minimum number of variations per record
+  --max-duplicates N   maximum number of variations per record
+  --min-chaos N        minimum number of mistakes per field
+  --max-chaos N        maximum number of mistakes per field
+  -v, --version        show program's version number and exit
+```
+
+## Basic Examples
 
 ```python
 from mistaker import Word, Name, Date, Number
 
 # Generate word variations
-Word.make_mistake("GRATEFUL")   # => "GRATEFU"
-Word.make_mistake("GRATEFUL")   # => "GRATAFUL"
+Word("GRATEFUL").mistake()   # => "GRATEFU"
+Word("GRATEFUL").mistake()   # => "GRATAFUL"
 
 # Generate name variations with common mistakes
-Name.make_mistake("KIM DEAL")   # => "KIM FEAL"
-Name.make_mistake("KIM DEAL")   # => "KIM DEL"
-Name("KIM DEAL").chaos()        # => "DEELLL KIN"
+Name("KIM DEAL").mistake()   # => "KIM FEAL"
+Name("KIM DEAL").mistake()   # => "KIM DEL"
+Name("KIM DEAL").chaos()     # => "DEELLL KIN"
 
 # Generate date formatting errors and typos
-Date.make_mistake("09/04/1982") # => "1928-09-04"
-Date.make_mistake("09/04/1982") # => "0019-82-09"
+Date("09/04/1982").mistake() # => "1928-09-04"
+Date("09/04/1982").mistake() # => "0019-82-09"
 
 # Generate numeric transcription errors
-Number.make_mistake("12345")    # => "12335"
-Number.make_mistake("12345")    # => "72345"
+Number("12345").mistake()    # => "12335"
+Number("12345").mistake()    # => "72345"
 ```
 
 ## Detailed Usage
@@ -155,14 +267,6 @@ number.mistake(ErrorType.NUMERIC_KEY_PAD)  # => "12348"
 - **Decade Shifts**: Common in manual entry
 - **Y2K Issues**: Two-digit year ambiguity
 - **All Number-Based Errors**: Inherited from number handling
-
-## Development
-
-### Running Tests
-
-```bash
-pytest
-```
 
 ### Contributing
 
