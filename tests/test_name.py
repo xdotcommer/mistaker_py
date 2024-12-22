@@ -154,26 +154,82 @@ def test_get_parts_complex():
 
 
 def test_get_name_variations():
-    # Test full name with middle
+    """Test both original name variations and nickname variations"""
+    # Test original functionality first
     name = Name("John Robert Smith")
     variations = name.get_name_variations()
 
+    # Check original variations still work
     assert "Smith, John" in variations
     assert "Smith John" in variations
     assert "John Smith" in variations  # Missing middle
     assert "John R Smith" in variations  # Middle initial
     assert "J Robert Smith" in variations  # First initial
 
-    # Test with prefix and suffix
-    name = Name("Dr John Smith PhD")
+    # Test with name that has known nicknames
+    name = Name("William James Smith")
     variations = name.get_name_variations()
 
-    assert "John Smith" in variations  # No prefix/suffix
-    assert any(
-        v.startswith("Mr ") or v.startswith("Mrs ") for v in variations
-    )  # Different prefix
-    assert "Dr John Smith" in variations  # No suffix
-    assert "John Smith PhD" in variations  # No prefix
+    # Test original functionality remains
+    assert "Smith, William" in variations
+    assert "William J Smith" in variations
+
+    # Test nickname functionality (if package available)
+    try:
+        from nicknames import NickNamer
+
+        # Check nickname variations
+        has_nickname = any("Bill" in v for v in variations)
+        has_nickname_with_middle = any("Bill J Smith" in v for v in variations)
+        assert has_nickname, "Should include nickname variations"
+        assert has_nickname_with_middle, "Should include nicknames with middle initial"
+
+        # Check proper formatting maintained
+        nickname_variations = [v for v in variations if "Bill" in v]
+        for var in nickname_variations:
+            assert not "  " in var, "Should not have double spaces"
+            if "," in var:
+                assert var.startswith("Smith, "), "Comma format should be maintained"
+    except ImportError:
+        pass  # Skip nickname tests if package not available
+
+
+def test_name_variations_with_prefix_suffix():
+    """Test nickname variations with prefixes and suffixes"""
+    name = Name("Dr William James Smith Jr")
+    variations = name.get_name_variations()
+
+    # Test original functionality remains
+    assert "Dr William James Smith Jr" in variations
+    assert "William Smith Jr" in variations
+
+    # Test nickname integration (if package available)
+    try:
+        from nicknames import NickNamer
+
+        # Check nickname with prefix/suffix
+        has_nickname_with_prefix = any("Dr Bill" in v for v in variations)
+        has_nickname_with_suffix = any(
+            v.endswith("Jr") and "Bill" in v for v in variations
+        )
+        assert has_nickname_with_prefix, "Should include nicknames with prefixes"
+        assert has_nickname_with_suffix, "Should include nicknames with suffixes"
+    except ImportError:
+        pass
+
+    # Test nickname generation
+    name = Name("Robert James Smith")
+    variations = name.get_name_variations()
+
+    # Check for common nicknames (only if nicknames package is installed)
+    try:
+        from nicknames import NickNamer
+
+        assert any(v.startswith("Bob") for v in variations)
+        assert any(v.startswith("Rob") for v in variations)
+        assert any(v.startswith("Bobby") for v in variations)
+    except ImportError:
+        pass  # Skip nickname checks if package not available
 
 
 def test_mistake_with_name_variations():

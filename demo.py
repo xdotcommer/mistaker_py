@@ -122,5 +122,12 @@ def demonstrate_generator():
 
 
 if __name__ == "__main__":
-    demonstrate_mistakes()
-    demonstrate_generator()
+    test_names = ["Robert James Wilson", "María José García", "Kim Deal"]
+    for name_text in test_names:
+        name = Name(name_text)
+        variations = name.get_name_variations()
+        print(f"\nVariations for {name_text}:")
+        for v in variations:
+            print(f"  {v}")
+    # demonstrate_mistakes()
+    # demonstrate_generator()

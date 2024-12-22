@@ -1,11 +1,11 @@
 {
     "_meta": {
         "hash": {
-            "sha256": "5b4a9aad2361219c16cb44268f75fed3122edbaff027f7316f5d694354668276"
+            "sha256": "8ef196004e75a14048fbcc677c7bf192e6a363c89e6f6bd261e583f9def4c26f"
         },
         "pipfile-spec": 6,
         "requires": {
-            "python_version": "3.13"
+            "python_version": "3.10"
         },
         "sources": [
             {
@@ -15,7 +15,17 @@
             }
         ]
     },
-    "default": {},
+    "default": {
+        "nicknames": {
+            "hashes": [
+                "sha256:c815158cd4b93db07620416f32b5a21c5a415b4dc061c907c6f51aee47501599",
+                "sha256:f68298784fdc96eeb16db8b74cea37338c6d642781935950ef6b4d6a51a87910"
+            ],
+            "index": "pypi",
+            "markers": "python_version >= '3.7'",
+            "version": "==0.1.11"
+        }
+    },
     "develop": {
         "iniconfig": {
             "hashes": [
