@@ -171,3 +171,36 @@ EXTRA_LETTERS: Dict[str, str] = {
     "Z": "E",
     " ": "",
 }
+
+# Add to constants.py with the other dictionaries
+
+# Address components
+ADDRESS_SUFFIXES = {"ST", "AVE", "RD", "BLVD", "DR", "LN", "CT", "WAY", "CIR", "PL"}
+
+ADDRESS_UNITS = {"SUITE", "STE", "APT", "APARTMENT", "UNIT", "FL", "FLOOR"}
+
+ADDRESS_DIRECTIONS = {"N", "S", "E", "W", "NE", "NW", "SE", "SW"}
+
+ADDRESS_DIRECTION_MAPPING = {
+    "NORTH": "N",
+    "SOUTH": "S",
+    "EAST": "E",
+    "WEST": "W",
+    "NORTHEAST": "NE",
+    "NORTHWEST": "NW",
+    "SOUTHEAST": "SE",
+    "SOUTHWEST": "SW",
+}
+
+ADDRESS_SUFFIX_MAPPING = {
+    "STREET": "ST",
+    "AVENUE": "AVE",
+    "ROAD": "RD",
+    "BOULEVARD": "BLVD",
+    "DRIVE": "DR",
+    "LANE": "LN",
+    "COURT": "CT",
+    "WAY": "WAY",
+    "CIRCLE": "CIR",
+    "PLACE": "PL",
+}

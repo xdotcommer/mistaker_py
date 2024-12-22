@@ -1,34 +1,15 @@
 from typing import Optional, List, Tuple
+from .constants import ErrorType
 from .number import Number
 from .word import Word
-from .constants import ErrorType
+from .constants import (
+    ADDRESS_SUFFIXES,
+    ADDRESS_UNITS,
+    ADDRESS_DIRECTIONS,
+    ADDRESS_DIRECTION_MAPPING,
+    ADDRESS_SUFFIX_MAPPING,
+)
 import random
-
-STREET_SUFFIXES = {"ST", "AVE", "RD", "BLVD", "DR", "LN", "CT", "WAY", "CIR", "PL"}
-UNIT_DESIGNATORS = {"SUITE", "STE", "APT", "APARTMENT", "UNIT", "FL", "FLOOR"}
-DIRECTION_PREFIXES = {"N", "S", "E", "W", "NE", "NW", "SE", "SW"}
-DIRECTION_MAPPING = {
-    "NORTH": "N",
-    "SOUTH": "S",
-    "EAST": "E",
-    "WEST": "W",
-    "NORTHEAST": "NE",
-    "NORTHWEST": "NW",
-    "SOUTHEAST": "SE",
-    "SOUTHWEST": "SW",
-}
-SUFFIX_MAPPING = {
-    "STREET": "ST",
-    "AVENUE": "AVE",
-    "ROAD": "RD",
-    "BOULEVARD": "BLVD",
-    "DRIVE": "DR",
-    "LANE": "LN",
-    "COURT": "CT",
-    "WAY": "WAY",
-    "CIRCLE": "CIR",
-    "PLACE": "PL",
-}
 
 
 class Address(Word):
@@ -45,15 +26,15 @@ class Address(Word):
 
     def _normalize_direction(self, word: str) -> Optional[str]:
         """Convert direction words to abbreviations"""
-        if word in DIRECTION_PREFIXES:
+        if word in ADDRESS_DIRECTIONS:
             return word
-        return DIRECTION_MAPPING.get(word)
+        return ADDRESS_DIRECTION_MAPPING.get(word)
 
     def _normalize_suffix(self, word: str) -> Optional[str]:
         """Convert street suffix words to abbreviations"""
-        if word in STREET_SUFFIXES:
+        if word in ADDRESS_SUFFIXES:
             return word
-        return SUFFIX_MAPPING.get(word)
+        return ADDRESS_SUFFIX_MAPPING.get(word)
 
     def _split_address_parts(
         self, address: str
@@ -73,7 +54,7 @@ class Address(Word):
 
         i = 0
         while i < len(parts):
-            if parts[i] in UNIT_DESIGNATORS and i < len(parts) - 1:
+            if parts[i] in ADDRESS_UNITS and i < len(parts) - 1:
                 unit_parts = parts[i:]
                 found_unit = True
                 break

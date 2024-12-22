@@ -4,12 +4,12 @@ from mistaker import Address
 from mistaker.constants import ErrorType
 from mistaker.number import Number
 from mistaker.word import Word
-from mistaker.address import (
-    STREET_SUFFIXES,
-    UNIT_DESIGNATORS,
-    DIRECTION_PREFIXES,
-    DIRECTION_MAPPING,
-    SUFFIX_MAPPING,
+from mistaker.constants import (  # Update this import
+    ADDRESS_SUFFIXES,
+    ADDRESS_UNITS,
+    ADDRESS_DIRECTIONS,
+    ADDRESS_DIRECTION_MAPPING,
+    ADDRESS_SUFFIX_MAPPING,
 )
 
 
@@ -118,8 +118,8 @@ def test_mistake_generation():
     with patch("random.random", return_value=0.2):
         result = address.mistake()
         parts = result.upper().split()
-        assert not any(suf in parts for suf in STREET_SUFFIXES)
-        assert not any(des in parts for des in UNIT_DESIGNATORS)
+        assert not any(suf in parts for suf in ADDRESS_SUFFIXES)
+        assert not any(des in parts for des in ADDRESS_UNITS)
 
 
 def test_standardize():
@@ -194,7 +194,7 @@ def test_mixed_case_input():
         assert "ST" in standardized
 
 
-@pytest.mark.parametrize("suffix", STREET_SUFFIXES)
+@pytest.mark.parametrize("suffix", ADDRESS_SUFFIXES)
 def test_all_street_suffixes(suffix):
     """Test handling of all street suffix variations"""
     address = Address(f"123 Main {suffix}")
