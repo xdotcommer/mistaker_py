@@ -2,7 +2,7 @@
     "min_duplicates": 2,
     "max_duplicates": 5,
     "min_chaos": 1,
-    "max_chaos": 3,
+    "max_chaos": 4,
     "missing_weights": {
         "full_name": 0.05,
         "dob": 0.1,
@@ -10,7 +10,7 @@
         "email": 0.95,
         "ssn": 0.9,
         "dl_num": 0.5,
-        "full_address": 0.5
+        "full_address": 0.1
     },
     "field_weights": {
         "full_name": 1.0,

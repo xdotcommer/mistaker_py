@@ -9,6 +9,7 @@ Mistaker is a Python package designed to emulate common data entry errors that o
   - Personal names and business names
   - Dates in various formats
   - Numeric data
+  - Addresses and locations
 - Configurable error types and rates
 - Support for multiple input formats
 - Preserves data structure while introducing realistic errors
@@ -72,7 +73,7 @@ Mistaker handles these fields with field-specific error patterns:
 - `ssn`: Number mistakes preserving SSN patterns
 - `dl_num`: Alphanumeric mistakes for driver's licenses
 - `email`: Username and domain-specific errors
-- `full_address`: Address component errors
+- `full_address`: Address component errors with street numbers, names, suffixes, unit numbers, and directional prefixes
 
 ## Advanced Usage
 
@@ -88,7 +89,8 @@ generator = Generator()
 record = {
     'full_name': 'John Smith',
     'dob': '1990-01-01',
-    'phone': '555-123-4567'
+    'phone': '555-123-4567',
+    'full_address': '123 N Main St Apt 4B'
 }
 
 variations = generator.generate(record)  # Returns list with original + variations
@@ -143,7 +145,7 @@ options:
 ## Basic Examples
 
 ```python
-from mistaker import Word, Name, Date, Number
+from mistaker import Word, Name, Date, Number, Address
 
 # Generate word variations
 Word("GRATEFUL").mistake()   # => "GRATEFU"
@@ -161,6 +163,10 @@ Date("09/04/1982").mistake() # => "0019-82-09"
 # Generate numeric transcription errors
 Number("12345").mistake()    # => "12335"
 Number("12345").mistake()    # => "72345"
+
+# Generate address variations and errors
+Address("123 N Main St Apt 4B").mistake()  # => "123 N MANE ST APT 4D"
+Address("456 South Oak Avenue").mistake()  # => "456 S OAK AVE"
 ```
 
 ## Detailed Usage
@@ -245,6 +251,29 @@ number.mistake(ErrorType.MISREAD)          # => "12375"
 number.mistake(ErrorType.NUMERIC_KEY_PAD)  # => "12348"
 ```
 
+### Address Handling
+
+```python
+from mistaker import Address
+
+# Create an address instance
+address = Address("123 North Main Street Suite 100")
+
+# Generate mistakes with automatic component handling
+address.mistake()  # => "123 N MANE ST STE 102"
+
+# Standardize address format
+address.standardize()  # => "123 N MAIN ST STE 100"
+
+# Handles various address components:
+# - Street numbers
+# - Directional prefixes (N, S, E, W, NE, NW, SE, SW)
+# - Street names
+# - Street suffixes (St, Ave, Rd, etc.)
+# - Unit designators (Suite, Apt, Unit, etc.)
+# - Unit numbers
+```
+
 ## Error Types
 
 ### Text and Name Errors
@@ -267,6 +296,13 @@ number.mistake(ErrorType.NUMERIC_KEY_PAD)  # => "12348"
 - **Decade Shifts**: Common in manual entry
 - **Y2K Issues**: Two-digit year ambiguity
 - **All Number-Based Errors**: Inherited from number handling
+
+### Address Errors
+- **Component Dropping**: Omitting address parts (suffixes, unit numbers)
+- **Standardization Issues**: Inconsistent formatting of prefixes and suffixes
+- **Number Errors**: Street number and unit number mistakes
+- **Text Errors**: Street name misspellings and variations
+- **Unit Formatting**: Inconsistent unit designator abbreviations
 
 ### Contributing
 

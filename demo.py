@@ -1,5 +1,6 @@
 from mistaker import Date, Name, Number, Word, ErrorType
 import random
+from mistaker import Generator
 
 
 def demonstrate_mistakes(iterations=10):
@@ -65,5 +66,61 @@ def demonstrate_mistakes(iterations=10):
         print(f"Original: {name_text} -> Multiple Errors: {name_obj.chaos()}")
 
 
+def demonstrate_generator():
+    # Sample records
+    records = [
+        {
+            "full_name": "John Q Smith",
+            "dob": "1980-01-15",
+            "phone": "555-123-4567",
+            "email": "john.smith@email.com",
+            "ssn": "123-45-6789",
+            "dl_num": "S123456789",
+            "full_address": "123 Main St, Portland, OR 97201",
+        },
+        {
+            "full_name": "Mary Jane Wilson",
+            "dob": "1992-07-23",
+            "phone": "555-987-6543",
+            "email": "mary.wilson@email.com",
+            "ssn": "987-65-4321",
+            "dl_num": "W987654321",
+            "full_address": "456 Oak Ave, Portland, OR 97202",
+        },
+    ]
+
+    # Basic usage
+    print("\n=== Basic Generator Usage ===")
+    generator = Generator()
+    for record in records:
+        print("\nOriginal Record:")
+        print(record)
+        print("\nGenerated Variations:")
+        for variant in generator.generate(record):
+            print(variant)
+
+    # Custom configuration
+    print("\n=== Custom Configuration ===")
+    config = {
+        "min_duplicates": 1,
+        "max_duplicates": 3,
+        "min_chaos": 2,
+        "max_chaos": 4,
+        "missing_weights": {"phone": 0.3, "email": 0.2},
+    }
+    custom_generator = Generator(config=config)
+    record = records[0]
+    print("\nUsing Custom Config:")
+    for variant in custom_generator.generate(record):
+        print(variant)
+
+    # Batch processing
+    print("\n=== Batch Processing ===")
+    generator = Generator()
+    all_variants = list(generator.generate_all(records))
+    print(f"Generated {len(all_variants)} total records from {len(records)} originals")
+
+
 if __name__ == "__main__":
     demonstrate_mistakes()
+    demonstrate_generator()

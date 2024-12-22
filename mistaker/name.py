@@ -174,12 +174,15 @@ class Name(Word):
         self, error_type: Optional[ErrorType] = None, index: Optional[int] = None
     ) -> str:
         """Generate a mistake in the name"""
-        if error_type is None and random.random() < 0.5:  # 50% chance of variation
+        if (
+            error_type is None
+        ):  # Always generate a variation if no specific error type is provided
             parts = self.text.split()
             if len(parts) >= 2:
                 variations = [
                     f"{parts[-1]}, {' '.join(parts[:-1])}",  # Last, First [Middle]
-                    f"{parts[0]} {parts[-1]}",  # First Last
+                    f"{parts[0][0]} {parts[1]} {parts[-1]}",  # R James Smith
+                    f"{parts[0]} {parts[-1]}",  # Robert Smith
                 ]
                 if len(parts) > 2:
                     variations.append(
