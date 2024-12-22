@@ -55,3 +55,4 @@ venv.bak/
 # Project specific
 *.log
 .python-version
+.claudesync

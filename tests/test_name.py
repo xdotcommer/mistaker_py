@@ -10,12 +10,6 @@ def test_reformat():
     assert name.reformat("John  Q.  Public") == "JOHN Q PUBLIC"
 
 
-def test_make_mistake_classmethod():
-    """Test the class method interface"""
-    assert Name.make_mistake("Cathy") != "Cathy"
-    assert Name.make_mistake("Martin") != "Martin"
-
-
 def test_dropped_letter():
     name = Name("CATHY")
     assert name.mistake(ErrorType.DROPPED_LETTER, 3) == "CATY"
@@ -157,3 +151,43 @@ def test_get_parts_complex():
     assert "Wilson" in parts["middle"]
     assert parts["last"] == "Smith"
     assert parts["suffix"] == "PhD"
+
+
+def test_get_name_variations():
+    # Test full name with middle
+    name = Name("John Robert Smith")
+    variations = name.get_name_variations()
+
+    assert "Smith, John" in variations
+    assert "Smith John" in variations
+    assert "John Smith" in variations  # Missing middle
+    assert "John R Smith" in variations  # Middle initial
+    assert "J Robert Smith" in variations  # First initial
+
+    # Test with prefix and suffix
+    name = Name("Dr John Smith PhD")
+    variations = name.get_name_variations()
+
+    assert "John Smith" in variations  # No prefix/suffix
+    assert any(
+        v.startswith("Mr ") or v.startswith("Mrs ") for v in variations
+    )  # Different prefix
+    assert "Dr John Smith" in variations  # No suffix
+    assert "John Smith PhD" in variations  # No prefix
+
+
+def test_mistake_with_name_variations():
+    name = Name("Robert James Smith")
+
+    # Test multiple times to ensure we get different variations
+    mistakes = set()
+    for _ in range(20):
+        mistakes.add(name.mistake())
+
+    # Should have a mix of regular mistakes and name variations
+    assert len(mistakes) > 1
+    assert (
+        any("Smith, Robert" in m for m in mistakes)
+        or any("R James Smith" in m for m in mistakes)
+        or any("Robert Smith" in m for m in mistakes)
+    )

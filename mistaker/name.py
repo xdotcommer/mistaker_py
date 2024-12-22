@@ -1,6 +1,7 @@
 from typing import Optional, List
 from .word import Word
 from .constants import ErrorType
+import random
 
 
 class Name(Word):
@@ -9,8 +10,11 @@ class Name(Word):
     Inherits from Word class but can be extended with name-specific functionality.
     """
 
+    COMMON_PREFIXES = {"Mr", "Mrs", "Ms", "Dr", "Prof"}
+    COMMON_SUFFIXES = {"Jr", "Sr", "II", "III", "IV", "PhD", "MD", "Esq"}
+
     def __init__(self, text: str = ""):
-        self.original_text = text  # Store the original text
+        self.original_text = text
         super().__init__(text)
 
     def get_case_variants(self) -> List[str]:
@@ -36,6 +40,46 @@ class Name(Word):
         if case_sensitive:
             return self.text == other_name
         return self.text.upper() == other_name.upper()
+
+    def get_name_variations(self) -> List[str]:
+        """Generate basic name variations"""
+        parts = self.get_parts()
+        variations = []
+
+        # Base names
+        variations.append(f"{parts['first']} {parts['last']}")  # Simple first last
+        variations.append(f"{parts['last']}, {parts['first']}")  # Last, first
+        variations.append(f"{parts['last']} {parts['first']}")  # Last first
+
+        # Handle middle name if present
+        if parts["middle"]:
+            variations.append(
+                f"{parts['first']} {parts['middle'][0][0]} {parts['last']}"
+            )  # With middle initial
+            variations.append(
+                f"{parts['first'][0]} {' '.join(parts['middle'])} {parts['last']}"
+            )  # First initial
+
+        # Handle prefix/suffix
+        if parts["prefix"]:
+            variations.append(
+                f"{parts['prefix']} {parts['first']} {parts['last']}"
+            )  # With prefix, no suffix
+            # Add alternate prefixes
+            if parts["prefix"] == "Dr":
+                variations.append(f"Mr {parts['first']} {parts['last']}")
+                variations.append(f"Mrs {parts['first']} {parts['last']}")
+            else:
+                variations.append(f"Dr {parts['first']} {parts['last']}")
+
+        if parts["suffix"]:
+            variations.append(
+                f"{parts['first']} {parts['last']} {parts['suffix']}"
+            )  # With suffix, no prefix
+
+        # Clean up any double spaces
+        variations = [" ".join(v.split()) for v in variations]
+        return list(set(variations))
 
     def get_parts(self) -> dict:
         """Split name into prefix, first, middle, last, suffix"""
@@ -115,12 +159,26 @@ class Name(Word):
         self, error_type: Optional[ErrorType] = None, index: Optional[int] = None
     ) -> str:
         """
-        Generate a mistake in the name. Currently uses Word's mistake implementation
-        but can be extended with name-specific error types.
+        Generate a mistake in the name. Can either be a transcription error (like Word)
+        or a variation in how the name is formatted.
         """
-        # For now, use the Word implementation
-        # Could be extended with name-specific error types like:
-        # - Common nickname substitutions
-        # - Cultural variations
-        # - Marriage/maiden name errors
+        # Get both types of possible changes
+        variations = self.get_name_variations()
+
+        if error_type is None:
+            # 30% chance of using a name variation, 50% chance of a transcription error
+            if random.random() < 0.3 and variations:
+                return random.choice(variations)
+            else:
+                # Fall back to regular word mistakes
+                return super().mistake(error_type, index)
         return super().mistake(error_type, index)
+
+    def chaos(self) -> str:
+        """
+        Apply a random number (between 1 and 6) of mistakes to the name and return the new value.
+        """
+        errors_count = random.randint(1, 6)
+        for _ in range(errors_count):
+            self.text = self.mistake()
+        return self.text
