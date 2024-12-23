@@ -81,12 +81,12 @@ class Generator:
         """Normalize configuration with defaults"""
         # Ensure all config sections exist
         config.setdefault("missing_weights", {})
-        config.setdefault("field_weights", {})
+        config.setdefault("mistake_weights", {})
 
         # Set default weights for all supported fields
         for field in self.SUPPORTED_FIELDS:
             config["missing_weights"].setdefault(field, 0.1)
-            config["field_weights"].setdefault(field, 1.0)
+            config["mistake_weights"].setdefault(field, 1.0)
 
         return config
 

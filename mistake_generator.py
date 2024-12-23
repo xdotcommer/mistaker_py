@@ -42,12 +42,12 @@ class DataMistakeGenerator:
         config.setdefault("min_chaos", 1)
         config.setdefault("max_chaos", 3)
         config.setdefault("missing_weights", {})
-        config.setdefault("field_weights", {})
+        config.setdefault("mistake_weights", {})
 
         # Ensure all supported fields have weights
         for field in self.SUPPORTED_FIELDS:
             config["missing_weights"].setdefault(field, 0.1)
-            config["field_weights"].setdefault(field, 1.0)
+            config["mistake_weights"].setdefault(field, 1.0)
 
         return config
 

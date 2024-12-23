@@ -60,7 +60,7 @@ Control the mistake generation process via a JSON configuration file:
         "dl_num": 0.5,
         "full_address": 0.1
     },
-    "field_weights": {
+    "mistake_weights": {
         "full_name": 1.0,
         "dob": 1.0,
         "phone": 1.0,
