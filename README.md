@@ -47,18 +47,27 @@ Control the mistake generation process via a JSON configuration file:
 
 ```json
 {
-    "min_duplicates": 2,    // Minimum variations per record
-    "max_duplicates": 5,    // Maximum variations per record
-    "min_chaos": 1,         // Minimum mistakes per field
-    "max_chaos": 3,         // Maximum mistakes per field
+    "min_duplicates": 2,
+    "max_duplicates": 5,
+    "min_chaos": 1,
+    "max_chaos": 4,
     "missing_weights": {
-        "full_name": 0.05,  // 5% chance field will be missing
-        "dob": 0.1,         // 10% chance
-        "phone": 0.2,       // 20% chance
-        "email": 0.15,
-        "ssn": 0.1,
-        "dl_num": 0.25,
-        "full_address": 0.15
+        "full_name": 0.05,
+        "dob": 0.1,
+        "phone": 0.8,
+        "email": 0.95,
+        "ssn": 0.9,
+        "dl_num": 0.5,
+        "full_address": 0.1
+    },
+    "field_weights": {
+        "full_name": 1.0,
+        "dob": 1.0,
+        "phone": 1.0,
+        "email": 1.0,
+        "ssn": 1.0,
+        "dl_num": 1.0,
+        "full_address": 1.0
     }
 }
 ```
