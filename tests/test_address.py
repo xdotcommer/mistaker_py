@@ -33,30 +33,27 @@ def test_init():
 
 def test_split_address_parts():
     address = Address("123 Main St Suite 100")
-    main_parts, suffix, unit_parts, direction = address._split_address_parts(
-        address.text
+    main_parts, suffix, unit_parts, direction, location_parts = (
+        address._split_address_parts(address.text)
     )
     assert main_parts == ["123", "MAIN"]
     assert suffix == "ST"
     assert unit_parts == ["SUITE", "100"]
     assert direction is None
-
-    address = Address("N 123 Main St")
-    main_parts, suffix, unit_parts, direction = address._split_address_parts(
-        address.text
-    )
-    assert main_parts == ["123", "MAIN"]
-    assert direction == "N"
+    assert location_parts == []
 
 
 @pytest.mark.parametrize(
     "input_addr,expected_parts",
     [
-        ("123 Main St", (["123", "MAIN"], "ST", [], None)),
-        ("N 456 Oak Ave Apt 2B", (["456", "OAK"], "AVE", ["APT", "2B"], "N")),
-        ("SW 789 Pine Rd Suite 300", (["789", "PINE"], "RD", ["SUITE", "300"], "SW")),
-        ("321 Washington", (["321", "WASHINGTON"], None, [], None)),
-        ("555 Broadway Fl 5", (["555", "BROADWAY"], None, ["FL", "5"], None)),
+        ("123 Main St", (["123", "MAIN"], "ST", [], None, [])),
+        ("N 456 Oak Ave Apt 2B", (["456", "OAK"], "AVE", ["APT", "2B"], "N", [])),
+        (
+            "SW 789 Pine Rd Suite 300",
+            (["789", "PINE"], "RD", ["SUITE", "300"], "SW", []),
+        ),
+        ("321 Washington", (["321", "WASHINGTON"], None, [], None, [])),
+        ("555 Broadway Fl 5", (["555", "BROADWAY"], None, ["FL", "5"], None, [])),
     ],
 )
 def test_address_parsing_variations(input_addr, expected_parts):
@@ -99,7 +96,9 @@ def test_mistake_generation():
     with patch("random.random", return_value=0.9):
         result = address.mistake()
         assert "ST" in result.upper()
-        assert "SUITE" in result.upper() or "STE" in result.upper()
+        assert any(
+            des in result.upper() for des in UNIT_DESIGNATORS
+        ), f"No valid unit designator found in: {result}"
 
     with patch("random.random", return_value=0.2):
         result = address.mistake()
@@ -173,14 +172,20 @@ def test_unit_designator_not_duplicated():
 def test_all_unit_designators(unit_des):
     """Test that each unit designator can be used and substituted"""
     address = Address(f"123 Main St {unit_des} 100")
-    result = address.mistake()
-    result_parts = result.upper().split()
-    found_des = [part for part in result_parts if part in UNIT_DESIGNATORS]
 
-    if found_des:  # If we kept the unit designator (not dropped)
-        assert (
-            found_des[0] != unit_des
-        ), f"Unit designator wasn't substituted: {unit_des}"
+    # Mock random to ensure we keep the unit designator part
+    with patch("random.random", return_value=0.9):  # This ensures we keep unit info
+        result = address.mistake()
+        result_parts = result.upper().split()
+        found_des = [part for part in result_parts if part in UNIT_DESIGNATORS]
+
+        if found_des:  # If we kept the unit designator (not dropped)
+            assert (
+                found_des[0] != unit_des
+            ), f"Unit designator wasn't substituted: {unit_des}"
+            assert (
+                found_des[0] in UNIT_DESIGNATORS
+            ), f"Invalid unit designator substitution: {found_des[0]}"
 
 
 def test_unit_designator_case_insensitive():
@@ -218,3 +223,43 @@ def test_unit_designator_with_various_number_formats():
         result = address.mistake()
         # Verify the number part is preserved in some form
         assert any(c.isdigit() for c in result), f"Lost unit number in: {result}"
+
+
+def test_city_preservation():
+    """Test that city names are preserved in address mistakes"""
+    test_cases = [
+        {
+            "input": "22 N East Highway Suite 606 Littleton, CO 23232",
+            "checks": [
+                lambda x: "LITTLETON" in x.upper(),  # City should be present
+                lambda x: "CO" in x.upper(),  # State should be present
+                lambda x: any(
+                    str(i) in x for i in range(10)
+                ),  # Should have some numbers
+                lambda x: any(
+                    des in x.upper() for des in UNIT_DESIGNATORS
+                ),  # Should have a unit designator
+            ],
+        },
+        {
+            "input": "123 Main Street Apt 4B Denver, CO 80202",
+            "checks": [
+                lambda x: "DENVER" in x.upper(),
+                lambda x: "CO" in x.upper(),
+                lambda x: any(des in x.upper() for des in UNIT_DESIGNATORS),
+            ],
+        },
+    ]
+
+    for case in test_cases:
+        address = Address(case["input"])
+
+        # Force keeping all parts with mocked random
+        with patch("random.random", return_value=0.9):
+            result = address.mistake()
+            print(f"\nInput: {case['input']}")
+            print(f"Output: {result}")
+
+            # Run all checks
+            for check in case["checks"]:
+                assert check(result), f"Check failed for: {result}"

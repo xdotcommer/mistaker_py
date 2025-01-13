@@ -35,31 +35,30 @@ class Address(Word):
 
     def _split_address_parts(
         self, address: str
-    ) -> Tuple[List[str], Optional[str], List[str], Optional[str]]:
+    ) -> Tuple[List[str], Optional[str], List[str], Optional[str], List[str]]:
         if not address or not address.strip():
-            return [], None, [], None
+            return [], None, [], None, []
 
         address_parts = [p.strip() for p in address.upper().split(",")]
 
-        parts = address_parts[0].split()
-        if not parts:
-            return [], None, [], None
+        street_parts = address_parts[0].split()
+        location_parts = address_parts[1:] if len(address_parts) > 1 else []
+
+        if not street_parts:
+            return [], None, [], None, []
 
         unit_parts = []
         main_parts = []
         found_unit = False
 
         i = 0
-        while i < len(parts):
-            if parts[i] in ADDRESS_UNITS and i < len(parts) - 1:
-                unit_parts = parts[i:]
+        while i < len(street_parts):
+            if street_parts[i] in UNIT_DESIGNATORS and i < len(street_parts) - 1:
+                unit_parts = street_parts[i:]
                 found_unit = True
                 break
-            main_parts.append(parts[i])
+            main_parts.append(street_parts[i])
             i += 1
-
-        if not found_unit:
-            unit_parts = []
 
         direction = None
         if main_parts:
@@ -75,11 +74,7 @@ class Address(Word):
                 suffix = potential_suffix
                 main_parts = main_parts[:-1]
 
-        if len(address_parts) > 1:
-            for extra_part in address_parts[1:]:
-                main_parts.extend(extra_part.split())
-
-        return main_parts, suffix, unit_parts, direction
+        return main_parts, suffix, unit_parts, direction, location_parts
 
     def mistake(
         self, error_type: Optional[ErrorType] = None, index: Optional[int] = None
@@ -87,7 +82,9 @@ class Address(Word):
         if not self.text.strip() or not any(c.isalnum() for c in self.text):
             return ""
 
-        main_parts, suffix, unit_parts, direction = self._split_address_parts(self.text)
+        main_parts, suffix, unit_parts, direction, location_parts = (
+            self._split_address_parts(self.text)
+        )
         if not main_parts:
             return ""
 
@@ -97,12 +94,14 @@ class Address(Word):
             modified_parts.append(direction)
 
         for part in main_parts:
-            if len(part) == 2 and part.isalpha():
+            if part == ",":
+                modified_parts.append(part)
+            elif len(part) == 2 and part.isalpha():
                 modified_parts.append(part)
             elif part.isdigit():
                 handler = Number(part)
                 modified_parts.append(handler.mistake(error_type))
-            elif len(part) >= 3:
+            elif len(part) >= 3 and not any(c.isdigit() for c in part):
                 handler = Word(part)
                 modified_parts.append(handler.mistake(error_type))
             else:
@@ -113,27 +112,35 @@ class Address(Word):
 
         if unit_parts and random.random() >= 0.4:
             if len(unit_parts) >= 2:
-                unit_des = unit_parts[0]
+                unit_des = unit_parts[0].upper()
                 unit_num = unit_parts[1]
-                if unit_des in UNIT_DESIGNATORS:
-                    possible_designators = [
-                        d for d in UNIT_DESIGNATORS if d != unit_des
-                    ]
-                    if possible_designators:
-                        unit_des = random.choice(possible_designators)
+            if unit_des in UNIT_DESIGNATORS:
+                possible_designators = [d for d in UNIT_DESIGNATORS if d != unit_des]
+                if possible_designators:
+                    unit_des = random.choice(possible_designators)
                 if unit_num.isdigit():
                     handler = Number(unit_num)
                     unit_num = handler.mistake(error_type)
                 modified_parts.extend([unit_des, unit_num])
+        if location_parts:
+            modified_parts.append(",")
+            for i, loc_part in enumerate(location_parts):
+                if i > 0:
+                    modified_parts.append(",")
 
-        result = []
-        last_part = None
-        for part in modified_parts:
-            if len(part) == 2 and part.isalpha() and last_part and last_part != ",":
-                result.append(",")
-            result.append(part)
-            last_part = part
-        return " ".join(result)
+                loc_words = loc_part.split()
+                for j, word in enumerate(loc_words):
+                    if j > 0:
+                        modified_parts.append(" ")
+                    if len(word) == 2 and word.isalpha():
+                        modified_parts.append(word)
+                    elif word.isdigit():
+                        handler = Number(word)
+                        modified_parts.append(handler.mistake(error_type))
+                    else:
+                        modified_parts.append(word)
+
+        return " ".join(part for part in modified_parts if part not in [" ", ""])
 
     def standardize(self) -> str:
         if not self.text.strip() or not any(c.isalnum() for c in self.text):
@@ -143,7 +150,9 @@ class Address(Word):
         if not parts:
             return ""
 
-        main_parts, suffix, unit_parts, direction = self._split_address_parts(self.text)
+        main_parts, suffix, unit_parts, direction, location_parts = (
+            self._split_address_parts(self.text)
+        )
         standardized_parts = []
 
         if direction:
