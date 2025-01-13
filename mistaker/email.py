@@ -45,21 +45,26 @@ class Email(BaseMistaker):
         # Split into prefix and domain
         prefix_str, domain_full = email.split("@")
 
-        # Handle prefix parts
+        # Handle prefix parts by splitting on non-alphanumeric characters
         prefix_parts = []
-        current_word = ""
-        current_delim = ""
+        current_part = ""
+        i = 0
 
-        for char in prefix_str:
-            if char.isalnum():
-                current_word += char
+        while i < len(prefix_str):
+            if prefix_str[i].isalnum():
+                current_part += prefix_str[i]
             else:
-                if current_word:
-                    prefix_parts.append((current_word, current_delim))
-                    current_word = ""
-                current_delim = char
-        if current_word:
-            prefix_parts.append((current_word, current_delim))
+                # Found a delimiter
+                if current_part:  # Only add if we have a word
+                    # Look ahead to collect all consecutive delimiters
+                    delim = prefix_str[i]
+                    prefix_parts.append((current_part, delim))
+                    current_part = ""
+            i += 1
+
+        # Add the last part if exists
+        if current_part:
+            prefix_parts.append((current_part, ""))
 
         # Handle domain parts and TLD
         domain_parts = []
