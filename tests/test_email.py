@@ -146,3 +146,62 @@ def test_tld_variations():
                 break
         else:
             pytest.fail(f"No mistakes were made in email with TLD {tld}")
+
+
+def test_complex_email_splitting():
+    """Test that complex email addresses are properly split and mistakes are applied to word parts"""
+    test_cases = [
+        ("first.last@gmail.com", [("first", True), ("last", True), ("gmail", True)]),
+        ("name@some.corp.co.uk", [("name", True), ("some", True), ("corp", True)]),
+        (
+            "first.last+spam@some.company.com",
+            [
+                ("first", True),
+                ("last", True),
+                ("spam", True),
+                ("some", True),
+                ("company", True),
+            ],
+        ),
+    ]
+
+    for input_email, expected_parts in test_cases:
+        email = Email(input_email)
+
+        # Take multiple samples to ensure mistakes are being made
+        mistakes_found = {part[0]: False for part in expected_parts if part[1]}
+
+        for _ in range(50):
+            result = email.mistake()
+
+            # Split result on non-alpha chars
+            parts = [
+                p
+                for p in result.replace("@", ".").split(".")
+                if p and not p in ["co", "uk", "com"]  # Ignore TLD parts
+            ]
+
+            # For each expected part that should be mistakable
+            for part, should_mistake in expected_parts:
+                if should_mistake:
+                    # If we find any mistakes, mark them
+                    if part not in parts:
+                        mistakes_found[part] = True
+
+            # Check delimiters are preserved
+            if "first.last@gmail.com" in input_email:
+                assert "." in result.split("@")[0], "Dot delimiter was lost in prefix"
+
+            if "some.corp.co.uk" in input_email:
+                assert result.endswith(".co.uk"), "UK TLD format was not preserved"
+                assert "." in result.split("@")[1], "Dot delimiter was lost in domain"
+
+            if "+spam" in input_email:
+                assert "+" in result, "Plus delimiter was lost"
+                assert "." in result.split("@")[0], "Dot delimiter was lost in prefix"
+
+        # Verify that mistakes were found for each expected part
+        for part in mistakes_found:
+            assert mistakes_found[
+                part
+            ], f"No mistakes were found for part '{part}' in {input_email}"

@@ -1,4 +1,4 @@
-from typing import Optional, Tuple
+from typing import Optional, Tuple, List
 from .base import BaseMistaker
 from .constants import ErrorType
 from .word import Word
@@ -14,7 +14,6 @@ class Email(BaseMistaker):
 
     def reformat(self, text: str) -> str:
         """Process email while preserving original case"""
-        # Handle invalid input types by converting to string
         if text is None:
             return ""
 
@@ -26,31 +25,67 @@ class Email(BaseMistaker):
         if not text_str or text_str.isspace():
             return ""
 
-        # Store original case for later use (though we won't use it now)
         self.original_case = text_str
         # Always convert to lowercase
         return text_str.lower()
 
-    def _split_email(self, email: str) -> Tuple[str, str, str]:
-        """Split email into prefix, domain, and TLD"""
-        prefix, rest = email.split("@")
-        domain_parts = rest.split(".")
-        tld = domain_parts[-1]
-        domain = ".".join(domain_parts[:-1])
-        return prefix, domain, tld
+    def _is_tld(self, part: str) -> bool:
+        """Check if a part is a TLD component"""
+        common_tlds = {"com", "org", "edu", "net", "co", "uk"}
+        return part in common_tlds
+
+    def _split_email_parts(
+        self, email: str
+    ) -> Tuple[List[Tuple[str, str]], List[Tuple[str, str]], str]:
+        """
+        Split email into parts, preserving delimiters
+        Returns (prefix_parts, domain_parts, tld)
+        Each part is a tuple of (text, delimiter)
+        """
+        # Split into prefix and domain
+        prefix_str, domain_full = email.split("@")
+
+        # Handle prefix parts
+        prefix_parts = []
+        current_word = ""
+        current_delim = ""
+
+        for char in prefix_str:
+            if char.isalnum():
+                current_word += char
+            else:
+                if current_word:
+                    prefix_parts.append((current_word, current_delim))
+                    current_word = ""
+                current_delim = char
+        if current_word:
+            prefix_parts.append((current_word, current_delim))
+
+        # Handle domain parts and TLD
+        domain_parts = []
+        parts = domain_full.split(".")
+
+        # Find TLD components
+        tld_start = len(parts)
+        for i in range(len(parts) - 1, -1, -1):
+            if not self._is_tld(parts[i]):
+                tld_start = i + 1
+                break
+
+        # Process domain parts before TLD
+        for i in range(tld_start):
+            domain_parts.append((parts[i], "."))
+
+        # Combine remaining parts into TLD
+        tld = ".".join(parts[tld_start:])
+
+        return prefix_parts, domain_parts, tld
 
     def mistake(
         self, error_type: Optional[ErrorType] = None, index: Optional[int] = None
     ) -> str:
         """
         Generate a mistake in the email based on common transcription errors
-
-        Args:
-            error_type: Type of error to generate. If None, one is chosen randomly
-            index: Position to apply the error. If None, one is chosen randomly
-
-        Returns:
-            Modified email string with the applied error
         """
         if not self.text:
             return ""
@@ -62,26 +97,79 @@ class Email(BaseMistaker):
         except (ValueError, TypeError):
             return ""
 
-        prefix, domain, tld = self._split_email(self.text)
-        # Determine whether to make mistake in prefix or domain
-        if index is not None:
-            # If index is in prefix range, modify prefix
-            if index < len(prefix):
-                self.word_mistaker.text = prefix
-                prefix = self.word_mistaker.mistake(error_type, index)
-            # If index is beyond prefix, modify domain
-            else:
-                self.word_mistaker.text = domain
-                domain = self.word_mistaker.mistake(error_type, index - len(prefix) - 1)
-        else:
-            # Randomly choose prefix or domain
-            if self.rand.random() < 0.7:  # 70% chance to modify prefix
-                self.word_mistaker.text = prefix
-                prefix = self.word_mistaker.mistake(error_type)
-            else:
-                self.word_mistaker.text = domain
-                domain = self.word_mistaker.mistake(error_type)
+        prefix_parts, domain_parts, tld = self._split_email_parts(self.text)
 
-        # Ensure the result is lowercase
-        result = f"{prefix}@{domain}.{tld}".lower()
-        return result
+        if index is not None:
+            current_pos = 0
+            made_mistake = False
+            result = ""
+
+            # Handle prefix parts
+            for word, delim in prefix_parts:
+                if index >= current_pos and index < current_pos + len(word):
+                    self.word_mistaker.text = word
+                    result += self.word_mistaker.mistake(
+                        error_type, index - current_pos
+                    )
+                    made_mistake = True
+                else:
+                    result += word
+                result += delim
+                current_pos += len(word) + len(delim)
+
+            # Add @ symbol
+            result += "@"
+            current_pos += 1
+
+            # Handle domain parts
+            for word, delim in domain_parts:
+                if (
+                    not made_mistake
+                    and index >= current_pos
+                    and index < current_pos + len(word)
+                ):
+                    self.word_mistaker.text = word
+                    result += self.word_mistaker.mistake(
+                        error_type, index - current_pos
+                    )
+                else:
+                    result += word
+                result += delim
+                current_pos += len(word) + len(delim)
+
+            # Add TLD
+            result += tld
+
+            return result.lower()
+
+        # Random mistake when no index provided
+        all_parts = prefix_parts + domain_parts
+        part_to_modify = self.rand.randint(0, len(all_parts) - 1)
+
+        result = ""
+
+        # Add prefix parts
+        for i, (word, delim) in enumerate(prefix_parts):
+            if i == part_to_modify:
+                self.word_mistaker.text = word
+                result += self.word_mistaker.mistake(error_type)
+            else:
+                result += word
+            result += delim
+
+        # Add @ symbol
+        result += "@"
+
+        # Add domain parts
+        for i, (word, delim) in enumerate(domain_parts):
+            if i + len(prefix_parts) == part_to_modify:
+                self.word_mistaker.text = word
+                result += self.word_mistaker.mistake(error_type)
+            else:
+                result += word
+            result += delim
+
+        # Add TLD
+        result += tld
+
+        return result.lower()
