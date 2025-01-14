@@ -6,6 +6,8 @@ from .word import Word
 from .name import Name
 from .date import Date
 from .number import Number
+from .email import Email
+from .license_number import LicenseNumber
 
 
 class Generator:
@@ -126,33 +128,8 @@ class Generator:
             try:
                 if field == "full_name":
                     name = Name(new_record[field])
-
-                    # First, decide if we want to use a nickname variation as the base
-                    if random.random() < 0.3:  # 30% chance to start with a nickname
-                        variations = name.get_name_variations()
-                        nickname_variations = [v for v in variations if v != name.text]
-                        if nickname_variations:
-                            name.text = random.choice(nickname_variations)
-
-                    # Now apply sequential mistakes
                     for _ in range(chaos_level):
-                        # During each iteration, we might:
-                        # 1. Apply a nickname transformation (20% chance)
-                        # 2. Apply a standard mistake (80% chance)
-                        if random.random() < 0.2:
-                            variations = name.get_name_variations()
-                            valid_variations = [
-                                v
-                                for v in variations
-                                if v != name.text and len(v.split()) >= 2
-                            ]
-                            if valid_variations:
-                                name.text = random.choice(valid_variations)
-                        else:
-                            # Apply standard mistake (transcription error)
-                            name.text = name.mistake()
-
-                    new_record[field] = name.text
+                        new_record[field] = name.mistake()
 
                 elif field == "dob":
                     date = Date(new_record[field])
@@ -165,17 +142,12 @@ class Generator:
                         new_record[field] = number.mistake()
 
                 elif field == "email":
-                    if "@" in new_record[field]:
-                        username, domain = new_record[field].split("@")
-                        username_word = Word(username)
-                        domain_word = Word(domain)
-                        for _ in range(chaos_level):
-                            new_username = username_word.mistake()
-                            new_domain = domain_word.mistake()
-                            new_record[field] = f"{new_username}@{new_domain}"
+                    email = Email(new_record[field])
+                    for _ in range(chaos_level):
+                        new_record[field] = email.mistake()
 
                 elif field == "dl_num":
-                    dl = Word(new_record[field])
+                    dl = LicenseNumber(new_record[field])
                     for _ in range(chaos_level):
                         new_record[field] = dl.mistake()
 
