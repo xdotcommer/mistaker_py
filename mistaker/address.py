@@ -1,189 +1,158 @@
-from typing import Optional, List, Tuple
-from .constants import ErrorType
-from .number import Number
+from typing import Optional, Dict, Tuple
+from collections import OrderedDict
+import usaddress
 from .word import Word
-from .constants import (
-    ADDRESS_SUFFIXES,
-    ADDRESS_UNITS,
-    ADDRESS_DIRECTIONS,
-    ADDRESS_DIRECTION_MAPPING,
-    ADDRESS_SUFFIX_MAPPING,
-    UNIT_DESIGNATORS,
-)
+from .number import Number
+import re
 import random
 
 
-class Address(Word):
+class Address:
+    DIRECTIONAL_REPLACEMENTS = [
+        "EAST",
+        "E",
+        "WEST",
+        "W",
+        "NORTH",
+        "N",
+        "SOUTH",
+        "S",
+        "NORTHEAST",
+        "NE",
+        "NORTHWEST",
+        "NW",
+        "SOUTHEAST",
+        "SE",
+        "SOUTHWEST",
+        "SW",
+        "NORTH-WEST",
+        "NORTH-EAST",
+        "SOUTH-WEST",
+        "SOUTH-EAST",
+    ]
+
     def __init__(self, text: str = ""):
         if text is None:
             text = ""
+        self.text = str(text).strip()
+        self.word_mistaker = Word()
+
+    def _empty_components(self) -> dict:
+        """Return empty component dictionary."""
+        return {
+            "building_name": None,
+            "street_number": None,
+            "street_direction": None,
+            "street_name": None,
+            "street_type": None,
+            "unit_type": None,
+            "unit_id": None,
+            "city": None,
+            "state": None,
+            "zip": None,
+        }
+
+    def parse(self) -> dict:
+        """Parse address into its component parts using usaddress."""
+        if not self.text:
+            return self._empty_components()
+
         try:
-            self.text = str(text).strip()
-        except (ValueError, TypeError):
-            self.text = ""
-        super().__init__(self.text)
+            tagged_address, _ = usaddress.tag(
+                self.text,
+                tag_mapping={
+                    "BuildingName": "building_name",  # Added this
+                    "AddressNumber": "street_number",
+                    "StreetNamePreDirectional": "street_direction",
+                    "StreetName": "street_name",
+                    "StreetNamePostType": "street_type",
+                    "OccupancyType": "unit_type",
+                    "OccupancyIdentifier": "unit_id",
+                    "PlaceName": "city",
+                    "StateName": "state",
+                    "ZipCode": "zip",
+                },
+            )
 
-    def _normalize_direction(self, word: str) -> Optional[str]:
-        if word in ADDRESS_DIRECTIONS:
-            return word
-        return ADDRESS_DIRECTION_MAPPING.get(word)
+            components = self._empty_components()
+            components.update(tagged_address)
 
-    def _normalize_suffix(self, word: str) -> Optional[str]:
-        if word in ADDRESS_SUFFIXES:
-            return word
-        return ADDRESS_SUFFIX_MAPPING.get(word)
+            # Clean up the components
+            if components.get("building_name"):
+                components["building_name"] = components["building_name"].upper()
+            if components.get("street_direction"):
+                components["street_direction"] = components["street_direction"].upper()
+            if components.get("street_name"):
+                components["street_name"] = components["street_name"].upper()
+            if components.get("street_type"):
+                components["street_type"] = components["street_type"].upper()
+            if components.get("unit_type"):
+                components["unit_type"] = components["unit_type"].upper()
+            if components.get("city"):
+                components["city"] = components["city"].upper()
+            if components.get("state"):
+                components["state"] = components["state"].upper()
 
-    def _split_address_parts(
-        self, address: str
-    ) -> Tuple[List[str], Optional[str], List[str], Optional[str], List[str]]:
-        if not address or not address.strip():
-            return [], None, [], None, []
+            # Special handling for unit with pound sign
+            if components.get("unit_id") and components["unit_id"].startswith("# "):
+                components["unit_type"] = "#"
+                components["unit_id"] = components["unit_id"].replace("# ", "")
 
-        address_parts = [p.strip() for p in address.upper().split(",")]
+            return components
 
-        street_parts = address_parts[0].split()
-        location_parts = address_parts[1:] if len(address_parts) > 1 else []
+        except usaddress.RepeatedLabelError:
+            return self._empty_components()
 
-        if not street_parts:
-            return [], None, [], None, []
+    def make_mistake(self, part: str) -> str:
+        """Generate a mistake in the specified address part"""
+        components = self.parse()
 
-        unit_parts = []
-        main_parts = []
-        found_unit = False
+        if components[part] is None:
+            return self.text
 
-        i = 0
-        while i < len(street_parts):
-            if street_parts[i] in UNIT_DESIGNATORS and i < len(street_parts) - 1:
-                unit_parts = street_parts[i:]
-                found_unit = True
-                break
-            main_parts.append(street_parts[i])
-            i += 1
+        if part in ["street_number", "zip"]:
+            return Number.make_mistake(components[part])
 
-        direction = None
-        if main_parts:
-            first_dir = self._normalize_direction(main_parts[0])
-            if first_dir:
-                direction = first_dir
-                main_parts = main_parts[1:]
+        if part == "unit_id":
+            match = re.match(r"(\d+)([A-Za-z]*)", components[part])
+            if match:
+                numeric_part, alpha_part = match.groups()
+                mistaken_number = Number.make_mistake(numeric_part)
+                new_unit_id = mistaken_number + alpha_part
+                return self.text.replace(components[part], new_unit_id)
 
-        suffix = None
-        if main_parts:
-            potential_suffix = self._normalize_suffix(main_parts[-1])
-            if potential_suffix:
-                suffix = potential_suffix
-                main_parts = main_parts[:-1]
+        if part == "street_name":
+            mistaken_name = self.word_mistaker.mistake()
+            return self.text.replace(components[part], mistaken_name)
 
-        return main_parts, suffix, unit_parts, direction, location_parts
+        if part == "street_direction":
+            chance = random.random()
+            orig_direction = components[part]
 
-    def mistake(
-        self, error_type: Optional[ErrorType] = None, index: Optional[int] = None
-    ) -> str:
-        if not self.text.strip() or not any(c.isalnum() for c in self.text):
-            return ""
+            if chance < 0.25:  # Skip direction
+                # Case-insensitive removal of direction and surrounding spaces
+                return re.sub(
+                    rf"\s*{orig_direction}\s*", " ", self.text, flags=re.IGNORECASE
+                ).strip()
+            elif chance < 0.5:  # Swap direction
+                new_direction = random.choice(
+                    [d for d in self.DIRECTIONAL_REPLACEMENTS if d != orig_direction]
+                )
+                # Case-insensitive replacement
+                return re.sub(
+                    rf"{orig_direction}", new_direction, self.text, flags=re.IGNORECASE
+                )
+            elif chance < 0.75:  # Word mistake
+                word_mistaker = Word(orig_direction)
+                mistaken_direction = word_mistaker.mistake()
+                # Case-insensitive replacement
+                return re.sub(
+                    rf"{orig_direction}",
+                    mistaken_direction,
+                    self.text,
+                    flags=re.IGNORECASE,
+                )
+            else:  # Remain same
+                return self.text
 
-        main_parts, suffix, unit_parts, direction, location_parts = (
-            self._split_address_parts(self.text)
-        )
-        if not main_parts:
-            return ""
-
-        modified_parts = []
-
-        if direction and random.random() >= 0.3:
-            modified_parts.append(direction)
-
-        for part in main_parts:
-            if part == ",":
-                modified_parts.append(part)
-            elif len(part) == 2 and part.isalpha():
-                modified_parts.append(part)
-            elif part.isdigit():
-                handler = Number(part)
-                modified_parts.append(handler.mistake(error_type))
-            elif len(part) >= 3 and not any(c.isdigit() for c in part):
-                handler = Word(part)
-                modified_parts.append(handler.mistake(error_type))
-            else:
-                modified_parts.append(part)
-
-        if suffix and random.random() >= 0.3:
-            modified_parts.append(suffix)
-
-        if unit_parts and random.random() >= 0.4:
-            if len(unit_parts) >= 2:
-                unit_des = unit_parts[0].upper()
-                unit_num = unit_parts[1]
-            if unit_des in UNIT_DESIGNATORS:
-                possible_designators = [d for d in UNIT_DESIGNATORS if d != unit_des]
-                if possible_designators:
-                    unit_des = random.choice(possible_designators)
-                if unit_num.isdigit():
-                    handler = Number(unit_num)
-                    unit_num = handler.mistake(error_type)
-                modified_parts.extend([unit_des, unit_num])
-        if location_parts:
-            modified_parts.append(",")
-            for i, loc_part in enumerate(location_parts):
-                if i > 0:
-                    modified_parts.append(",")
-
-                loc_words = loc_part.split()
-                for j, word in enumerate(loc_words):
-                    if j > 0:
-                        modified_parts.append(" ")
-                    if len(word) == 2 and word.isalpha():
-                        modified_parts.append(word)
-                    elif word.isdigit():
-                        handler = Number(word)
-                        modified_parts.append(handler.mistake(error_type))
-                    else:
-                        modified_parts.append(word)
-
-        return " ".join(part for part in modified_parts if part not in [" ", ""])
-
-    def standardize(self) -> str:
-        if not self.text.strip() or not any(c.isalnum() for c in self.text):
-            return ""
-
-        parts = self.text.upper().split()
-        if not parts:
-            return ""
-
-        main_parts, suffix, unit_parts, direction, location_parts = (
-            self._split_address_parts(self.text)
-        )
-        standardized_parts = []
-
-        if direction:
-            norm_dir = self._normalize_direction(direction)
-            if norm_dir:
-                standardized_parts.append(norm_dir)
-
-        if main_parts and main_parts[0].isdigit():
-            standardized_parts.append(main_parts[0])
-            main_parts = main_parts[1:]
-
-        for part in main_parts:
-            norm_dir = self._normalize_direction(part)
-            if norm_dir:
-                standardized_parts.append(norm_dir)
-            else:
-                standardized_parts.append(part)
-
-        if suffix:
-            norm_suffix = self._normalize_suffix(suffix)
-            if norm_suffix:
-                standardized_parts.append(norm_suffix)
-
-        if unit_parts:
-            unit_des = unit_parts[0]
-            if unit_des in UNIT_DESIGNATORS:
-                possible_designators = [d for d in UNIT_DESIGNATORS if d != unit_des]
-                if possible_designators:
-                    unit_des = random.choice(possible_designators)
-            standardized_parts.append(unit_des)
-            if len(unit_parts) > 1:
-                standardized_parts.append(unit_parts[1])
-
-        return " ".join(standardized_parts)
+        return self.text

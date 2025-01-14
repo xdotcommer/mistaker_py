@@ -5,6 +5,7 @@ name = "pypi"
 
 [packages]
 nicknames = ">=0.1.11"
+usaddress = ">=0.5.11"
 
 [dev-packages]
 pytest = "*"

@@ -1,265 +1,208 @@
-from unittest.mock import patch
 import pytest
+import usaddress
 from mistaker import Address
-from mistaker.constants import ErrorType
 from mistaker.number import Number
 from mistaker.word import Word
-from mistaker.constants import (
-    ADDRESS_SUFFIXES,
-    ADDRESS_UNITS,
-    ADDRESS_DIRECTIONS,
-    ADDRESS_DIRECTION_MAPPING,
-    ADDRESS_SUFFIX_MAPPING,
-    UNIT_DESIGNATORS,
-)
-
-
-def test_init():
-    address = Address("123 Main St")
-    assert address.text == "123 Main St"
-
-    address = Address("123 Main ST SUITE 100")
-    assert "SUITE" in address.text.upper()
-
-    address = Address(None)
-    assert address.text == ""
-
-    address = Address("")
-    assert address.text == ""
-
-    address = Address("   ")
-    assert address.text == ""
-
-
-def test_split_address_parts():
-    address = Address("123 Main St Suite 100")
-    main_parts, suffix, unit_parts, direction, location_parts = (
-        address._split_address_parts(address.text)
-    )
-    assert main_parts == ["123", "MAIN"]
-    assert suffix == "ST"
-    assert unit_parts == ["SUITE", "100"]
-    assert direction is None
-    assert location_parts == []
+from mistaker.constants import ErrorType
+from unittest import mock
+import random
 
 
 @pytest.mark.parametrize(
-    "input_addr,expected_parts",
+    "input_addr,expected",
     [
-        ("123 Main St", (["123", "MAIN"], "ST", [], None, [])),
-        ("N 456 Oak Ave Apt 2B", (["456", "OAK"], "AVE", ["APT", "2B"], "N", [])),
+        # Original test cases
         (
-            "SW 789 Pine Rd Suite 300",
-            (["789", "PINE"], "RD", ["SUITE", "300"], "SW", []),
+            "123 N Main St Suite 100 Denver, CO 80202",
+            {
+                "building_name": None,
+                "street_number": "123",
+                "street_direction": "N",
+                "street_name": "MAIN",
+                "street_type": "ST",
+                "unit_type": "SUITE",
+                "unit_id": "100",
+                "city": "DENVER",
+                "state": "CO",
+                "zip": "80202",
+            },
         ),
-        ("321 Washington", (["321", "WASHINGTON"], None, [], None, [])),
-        ("555 Broadway Fl 5", (["555", "BROADWAY"], None, ["FL", "5"], None, [])),
+        (
+            "456 East Washington Avenue Apt 2B",
+            {
+                "building_name": None,
+                "street_number": "456",
+                "street_direction": "EAST",
+                "street_name": "WASHINGTON",
+                "street_type": "AVENUE",
+                "unit_type": "APT",
+                "unit_id": "2B",
+                "city": None,
+                "state": None,
+                "zip": None,
+            },
+        ),
+        (
+            "789 SW Broadway",
+            {
+                "building_name": None,
+                "street_number": "789",
+                "street_direction": "SW",
+                "street_name": "BROADWAY",
+                "street_type": None,
+                "unit_type": None,
+                "unit_id": None,
+                "city": None,
+                "state": None,
+                "zip": None,
+            },
+        ),
+        (
+            "1234 Northeast MLK Jr Blvd #505 Portland, OR 97232",
+            {
+                "building_name": None,
+                "street_number": "1234",
+                "street_direction": "NORTHEAST",
+                "street_name": "MLK JR",
+                "street_type": "BLVD",
+                "unit_type": "#",
+                "unit_id": "505",
+                "city": "PORTLAND",
+                "state": "OR",
+                "zip": "97232",
+            },
+        ),
+        # New test case with building name
+        (
+            "Robie House, 5757 South Woodlawn Avenue, Chicago, IL 60637",
+            {
+                "building_name": "ROBIE HOUSE",
+                "street_number": "5757",
+                "street_direction": "SOUTH",
+                "street_name": "WOODLAWN",
+                "street_type": "AVENUE",
+                "unit_type": None,
+                "unit_id": None,
+                "city": "CHICAGO",
+                "state": "IL",
+                "zip": "60637",
+            },
+        ),
     ],
 )
-def test_address_parsing_variations(input_addr, expected_parts):
+def test_address_parsing(input_addr, expected):
+    """Test that addresses are correctly parsed into their component parts"""
     address = Address(input_addr)
-    result = address._split_address_parts(input_addr)
-    assert result == expected_parts
+    components = address.parse()
+    assert components == expected, f"\nExpected: {expected}\nGot: {components}"
 
 
-def test_direction_mapping():
-    test_cases = [
-        ("North Main St", "N"),
-        ("SOUTH Oak Ave", "S"),
-        ("northwest Pine Rd", "NW"),
-        ("Southeast Broadway", "SE"),
+def test_address_zip_calls_number_mistaker():
+    """Test that zip code mistakes delegate to Number mistaker"""
+    with mock.patch("mistaker.number.Number.make_mistake") as mock_number:
+        mock_number.return_value = "90202"
+
+        address = Address("123 Main St, Denver CO 80202")
+        address.make_mistake("zip")
+
+        # Verify Number.make_mistake was called with the zip code
+        mock_number.assert_called_once_with("80202")
+
+
+def test_address_street_number_calls_number_mistaker():
+    """Test that street number mistakes delegate to Number mistaker"""
+    with mock.patch("mistaker.number.Number.make_mistake") as mock_number:
+        mock_number.return_value = "223"
+
+        address = Address("123 Main St, Denver CO 80202")
+        address.make_mistake("street_number")
+
+        # Verify Number.make_mistake was called with the street number
+        mock_number.assert_called_once_with("123")
+
+
+def test_unit_id_numeric_part_calls_number_mistaker():
+    """Test that numeric portion of unit_id delegates to Number mistaker"""
+    with mock.patch("mistaker.number.Number.make_mistake") as mock_number:
+        mock_number.return_value = "202"
+
+        address = Address("123 Main St Apt 101A Denver CO 80202")
+        address.make_mistake("unit_id")
+
+        # Verify Number.make_mistake was called with just the numeric part
+        mock_number.assert_called_once_with("101")
+
+    # Test that the alpha portion is preserved
+    with mock.patch("mistaker.number.Number.make_mistake") as mock_number:
+        mock_number.return_value = "202"
+
+        address = Address("123 Main St Apt 101A Denver CO 80202")
+        result = address.make_mistake("unit_id")
+
+        assert "202A" in result
+
+
+def test_street_name_calls_word_mistaker():
+    """Test that street_name uses Word mistaker's mistake method"""
+    with mock.patch.object(Word, "mistake") as mock_word:
+        mock_word.return_value = "MOIN"  # MAIN -> MOIN
+
+        address = Address("123 Main St Denver CO 80202")
+        address.make_mistake("street_name")
+
+        # Verify Word.mistake was called
+        mock_word.assert_called_once()
+
+
+def test_street_direction_mistakes():
+    """Test that street_direction handles all error cases"""
+    # Set up our test data
+    directions = [
+        "EAST",
+        "E",
+        "WEST",
+        "W",
+        "NORTH",
+        "N",
+        "SOUTH",
+        "S",
+        "NORTHEAST",
+        "NE",
+        "NORTHWEST",
+        "NW",
+        "SOUTHEAST",
+        "SE",
+        "SOUTHWEST",
+        "SW",
+        "NORTH-WEST",
+        "NORTH-EAST",
+        "SOUTH-WEST",
+        "SOUTH-EAST",
     ]
 
-    address = Address()
-    for input_text, expected in test_cases:
-        direction = address._normalize_direction(input_text.split()[0].upper())
-        assert direction == expected
+    # Mock random.random() to test each case
+    with mock.patch("random.random") as mock_random:
+        address = Address("123 North Main St")
 
+        # Test skip direction (first quarter)
+        mock_random.return_value = 0.1  # in first quarter
+        result = address.make_mistake("street_direction")
+        assert "123 Main St" in result
 
-def test_suffix_mapping():
-    test_cases = [
-        ("Street", "ST"),
-        ("AVENUE", "AVE"),
-        ("Boulevard", "BLVD"),
-        ("Road", "RD"),
-    ]
+        # Test swap direction (second quarter)
+        mock_random.return_value = 0.3  # in second quarter
+        result = address.make_mistake("street_direction")
+        assert any(d.title() in result for d in directions if d != "NORTH")
 
-    address = Address()
-    for input_text, expected in test_cases:
-        suffix = address._normalize_suffix(input_text.upper())
-        assert suffix == expected
+        # Test word mistake (third quarter)
+        with mock.patch.object(Word, "mistake") as mock_word:
+            mock_random.return_value = 0.6  # in third quarter
+            mock_word.return_value = "NROTH"
+            result = address.make_mistake("street_direction")
+            assert mock_word.called
+            assert "NROTH" in result
 
-
-def test_mistake_generation():
-    address = Address("123 N Main St Suite 100")
-
-    with patch("random.random", return_value=0.9):
-        result = address.mistake()
-        assert "ST" in result.upper()
-        assert any(
-            des in result.upper() for des in UNIT_DESIGNATORS
-        ), f"No valid unit designator found in: {result}"
-
-    with patch("random.random", return_value=0.2):
-        result = address.mistake()
-        parts = result.upper().split()
-        assert not any(suf in parts for suf in ADDRESS_SUFFIXES)
-        assert not any(des in parts for des in ADDRESS_UNITS)
-
-
-def test_standardize():
-    test_cases = [
-        {
-            "input": "123 North Main Street Suite 100",
-            "components": {"123", "N", "MAIN", "ST"},
-        },
-        {
-            "input": "456 South Oak Avenue Apartment 2B",
-            "components": {"456", "S", "OAK", "AVE"},
-        },
-        {
-            "input": "789 Northwest Pine Road Suite 300",
-            "components": {"789", "NW", "PINE", "RD"},
-        },
-    ]
-
-    for case in test_cases:
-        address = Address(case["input"])
-        result = address.standardize()
-        result_parts = set(result.upper().split())
-
-        # Debug print statements
-        print(f"\nInput: {case['input']}")
-        print(f"Result: {result}")
-        print(f"Result parts: {result_parts}")
-        print(f"Expected components: {case['components']}")
-        print(f"Missing components: {case['components'] - result_parts}")
-
-        assert all(
-            comp in result_parts for comp in case["components"]
-        ), f"Missing components: {[comp for comp in case['components'] if comp not in result_parts]}"
-
-
-def test_random_unit_designator():
-    """Test that unit designators are randomly substituted"""
-    address = Address("123 Main St Suite 100")
-
-    # Run multiple times to ensure we get different substitutions
-    results = set()
-    for _ in range(10):
-        result = address.mistake()
-        unit_des = [part for part in result.upper().split() if part in UNIT_DESIGNATORS]
-        if unit_des:
-            results.add(unit_des[0])
-
-    # Should get at least 2 different unit designators in 10 tries
-    assert len(results) > 1, f"Only got {results} as unit designators"
-
-
-def test_unit_designator_not_duplicated():
-    """Test that the same unit designator isn't used when substituting"""
-    address = Address("123 Main St SUITE 100")
-
-    for _ in range(10):
-        result = address.mistake()
-        result_parts = result.upper().split()
-        unit_des = [part for part in result_parts if part in UNIT_DESIGNATORS]
-        # Should never have more than one unit designator
-        assert len(unit_des) <= 1, f"Found multiple unit designators: {unit_des}"
-
-
-@pytest.mark.parametrize("unit_des", UNIT_DESIGNATORS)
-def test_all_unit_designators(unit_des):
-    """Test that each unit designator can be used and substituted"""
-    address = Address(f"123 Main St {unit_des} 100")
-
-    # Mock random to ensure we keep the unit designator part
-    with patch("random.random", return_value=0.9):  # This ensures we keep unit info
-        result = address.mistake()
-        result_parts = result.upper().split()
-        found_des = [part for part in result_parts if part in UNIT_DESIGNATORS]
-
-        if found_des:  # If we kept the unit designator (not dropped)
-            assert (
-                found_des[0] != unit_des
-            ), f"Unit designator wasn't substituted: {unit_des}"
-            assert (
-                found_des[0] in UNIT_DESIGNATORS
-            ), f"Invalid unit designator substitution: {found_des[0]}"
-
-
-def test_unit_designator_case_insensitive():
-    """Test that unit designators are recognized regardless of case"""
-    test_cases = [
-        "123 Main St suite 100",
-        "123 Main St SUITE 100",
-        "123 Main St Suite 100",
-        "123 Main St sUiTe 100",
-    ]
-
-    for case in test_cases:
-        address = Address(case)
-        result = address.mistake()
-        result_parts = result.upper().split()
-        unit_des = [part for part in result_parts if part in UNIT_DESIGNATORS]
-        if unit_des:  # If we kept the unit designator (not dropped)
-            assert (
-                unit_des[0] != "SUITE"
-            ), f"Original unit designator wasn't substituted in: {case}"
-
-
-def test_unit_designator_with_various_number_formats():
-    """Test unit designators with different number formats"""
-    test_cases = [
-        "123 Main St Suite 100",
-        "123 Main St Suite 100A",
-        "123 Main St Suite A100",
-        "123 Main St Suite A-100",
-        "123 Main St Suite #100",
-    ]
-
-    for case in test_cases:
-        address = Address(case)
-        result = address.mistake()
-        # Verify the number part is preserved in some form
-        assert any(c.isdigit() for c in result), f"Lost unit number in: {result}"
-
-
-def test_city_preservation():
-    """Test that city names are preserved in address mistakes"""
-    test_cases = [
-        {
-            "input": "22 N East Highway Suite 606 Littleton, CO 23232",
-            "checks": [
-                lambda x: "LITTLETON" in x.upper(),  # City should be present
-                lambda x: "CO" in x.upper(),  # State should be present
-                lambda x: any(
-                    str(i) in x for i in range(10)
-                ),  # Should have some numbers
-                lambda x: any(
-                    des in x.upper() for des in UNIT_DESIGNATORS
-                ),  # Should have a unit designator
-            ],
-        },
-        {
-            "input": "123 Main Street Apt 4B Denver, CO 80202",
-            "checks": [
-                lambda x: "DENVER" in x.upper(),
-                lambda x: "CO" in x.upper(),
-                lambda x: any(des in x.upper() for des in UNIT_DESIGNATORS),
-            ],
-        },
-    ]
-
-    for case in test_cases:
-        address = Address(case["input"])
-
-        # Force keeping all parts with mocked random
-        with patch("random.random", return_value=0.9):
-            result = address.mistake()
-            print(f"\nInput: {case['input']}")
-            print(f"Output: {result}")
-
-            # Run all checks
-            for check in case["checks"]:
-                assert check(result), f"Check failed for: {result}"
+        # Test remain same (fourth quarter)
+        mock_random.return_value = 0.9  # in fourth quarter
+        result = address.make_mistake("street_direction")
+        assert "North" in result  # Changed from "NORTH" to "North"
