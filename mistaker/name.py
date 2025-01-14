@@ -92,7 +92,6 @@ class Name(Word):
             variations.extend(
                 [
                     f"{first} {parts['last']}",
-                    f"{parts['last']}, {first}",
                     f"{parts['last']} {first}",
                 ]
             )
@@ -193,7 +192,10 @@ class Name(Word):
 
     def reformat(self, text: str) -> str:
         """Format names consistently"""
-        cleaned = "".join(c for c in str(text).upper() if c.isalpha() or c.isspace())
+        cleaned = "".join(
+            c for c in str(text).upper() if c.isalpha() or c.isspace() or c == ","
+        )
+        cleaned = cleaned.replace(",", " ")
         return " ".join(cleaned.split())
 
     def mistake(

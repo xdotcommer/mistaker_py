@@ -6,7 +6,7 @@ import io
 from pathlib import Path
 from typing import Dict, List, Any, Set
 import argparse
-from mistaker import Name, Date, Number, Word
+from mistaker import Name, Date, Number, Word, LicenseNumber, Address, Email
 
 
 class DataMistakeGenerator:
@@ -101,30 +101,19 @@ class DataMistakeGenerator:
                         new_row[field] = number.mistake()
 
                 elif field == "email":
-                    if "@" in new_row[field]:
-                        username, domain = new_row[field].split("@")
-                        username_word = Word(username)
-                        domain_word = Word(domain)
-                        for _ in range(chaos_level):
-                            new_username = username_word.mistake()
-                            new_domain = domain_word.mistake()
-                            new_row[field] = f"{new_username}@{new_domain}"
+                    email = Email(new_row[field])
+                    for _ in range(chaos_level):
+                        new_row[field] = email.mistake()
 
                 elif field == "dl_num":
-                    dl = Word(new_row[field])
+                    dl = LicenseNumber(new_row[field])
                     for _ in range(chaos_level):
                         new_row[field] = dl.mistake()
 
                 elif field == "full_address":
-                    parts = new_row[field].split(",")
-                    new_parts = []
-                    for part in parts:
-                        word = Word(part.strip())
-                        new_part = part
-                        for _ in range(chaos_level):
-                            new_part = word.mistake()
-                        new_parts.append(new_part)
-                    new_row[field] = ", ".join(new_parts)
+                    address = Address(new_row[field])
+                    for _ in range(chaos_level):
+                        new_row[field] = address.mistake()
 
             except (ValueError, AttributeError) as e:
                 print(
